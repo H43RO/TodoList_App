@@ -5,8 +5,7 @@ import android.content.Intent
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.ViewGroup
+import android.view.*
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -33,15 +32,7 @@ class MainActivity : AppCompatActivity() {
 
         //로그인이 안됨
         if(FirebaseAuth.getInstance().currentUser == null){
-            val providers = arrayListOf(
-                AuthUI.IdpConfig.EmailBuilder().build())
-
-            startActivityForResult(
-                AuthUI.getInstance()
-                    .createSignInIntentBuilder()
-                    .setAvailableProviders(providers)
-                    .build(),
-                RC_SIGN_IN)
+            login()
         }
 
 
@@ -92,6 +83,44 @@ class MainActivity : AppCompatActivity() {
                 //로그인 실패 시 액티비티 종료해버림
                 finish()
             }
+        }
+    }
+
+    fun login(){
+        val providers = arrayListOf(
+            AuthUI.IdpConfig.EmailBuilder().build())
+
+        startActivityForResult(
+            AuthUI.getInstance()
+                .createSignInIntentBuilder()
+                .setAvailableProviders(providers)
+                .build(),
+            RC_SIGN_IN)
+    }
+
+    //로그아웃 메소드
+    fun logout(){
+        AuthUI.getInstance()
+            .signOut(this)
+            .addOnCompleteListener {
+                login()
+            }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        val inflater: MenuInflater = menuInflater
+        inflater.inflate(R.menu.main, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        // Handle item selection
+        return when (item.itemId) {
+            R.id.action_log_out -> {
+                logout()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
         }
     }
 }
