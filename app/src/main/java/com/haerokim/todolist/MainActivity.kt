@@ -7,6 +7,8 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -28,23 +30,24 @@ class MainActivity : AppCompatActivity() {
 
             //to의-do 객체의 주소값이 왔다갔다해서 편하게 뷰를 조작할 수 있음 (객체지향 프로그래밍 특성 활용)
             adapter = TodoAdapter(
-                viewModel.data,
+                emptyList(),
                 onClickDeleteIcon = {
                     viewModel.deleteTodo(it)
-                    binding.recylcerView.adapter?.notifyDataSetChanged()
                 },
                 onClickItem = {
                     viewModel.toggleTodo(it)
-                    binding.recylcerView.adapter?.notifyDataSetChanged()
                 })
         }
 
         binding.addButton.setOnClickListener {
             val todo = Todo(binding.editText.text.toString())
             viewModel.addTodo(todo)
-            binding.recylcerView.adapter?.notifyDataSetChanged()
         }
 
+        // 관찰 UI Update
+        viewModel.todoLiveData.observe(this, Observer {
+            (binding.recylcerView.adapter as TodoAdapter).setData(it) //변경된 최신 데이터 it 넣어줌
+        })
     }
 }
 
@@ -54,7 +57,7 @@ data class Todo(
 ) //기본값 false
 
 class TodoAdapter(
-    private val myDataset: List<Todo>,
+    private var myDataset: List<Todo>,
     val onClickDeleteIcon: (todo: Todo) -> Unit,
     val onClickItem: (todo: Todo) -> Unit
 ) :
@@ -105,22 +108,36 @@ class TodoAdapter(
     }
 
     override fun getItemCount() = myDataset.size
+
+    //데이터가 변경될 때마다 notifyDataSetChanged() 호출
+    fun setData(newData: List<Todo>){ //LiveData를 보고 데이터 다시 세팅해주는 메소드
+        myDataset = newData
+        notifyDataSetChanged()
+    }
 }
 
 //화면 회전 시 액티비티 데이터가 날아가는 현상 픽스 (Activity Life Cycle 문제)
 //ViewModel이 해당 액티비티를 관리하도록 할 것임 (데이터 관리하는 요소들도 여기서 처리할 것)
+
 class MainViewModel : ViewModel() {
-    val data = arrayListOf<Todo>()
+    //상태 변경, 관찰이 가능한 LiveData (Mutable) 를 저장할 객체 todoLiveData
+    //LiveData를 이용하여 상태 관리를 하게 되면 코드가 훨씬 간결해진다
+    val todoLiveData = MutableLiveData<List<Todo>>()
+
+    private val data = arrayListOf<Todo>()
 
     fun addTodo(todo: Todo) {
         data.add(todo)
+        todoLiveData.value = data //변경된 최신 데이터를 집어넣음
     }
 
     fun deleteTodo(todo: Todo) {
         data.remove(todo)
+        todoLiveData.value = data //변경된 최신 데이터를 집어넣음
     }
 
     fun toggleTodo(todo: Todo) {
         todo.isDone = !todo.isDone
+        todoLiveData.value = data //변경된 최신 데이터를 집어넣음
     }
 }
