@@ -1,10 +1,13 @@
 package com.haerokim.todolist
 
+import android.app.Activity
+import android.content.Intent
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.MutableLiveData
@@ -12,10 +15,14 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.firebase.ui.auth.AuthUI
+import com.firebase.ui.auth.IdpResponse
+import com.google.firebase.auth.FirebaseAuth
 import com.haerokim.todolist.databinding.ActivityMainBinding
 import com.haerokim.todolist.databinding.ItemTodoBinding
 
 class MainActivity : AppCompatActivity() {
+    private val RC_SIGN_IN = 1000
     private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
 
@@ -23,6 +30,21 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        //로그인이 안됨
+        if(FirebaseAuth.getInstance().currentUser == null){
+            val providers = arrayListOf(
+                AuthUI.IdpConfig.EmailBuilder().build())
+
+            startActivityForResult(
+                AuthUI.getInstance()
+                    .createSignInIntentBuilder()
+                    .setAvailableProviders(providers)
+                    .build(),
+                RC_SIGN_IN)
+        }
+
+
 
 
         binding.recylcerView.apply {
@@ -40,14 +62,37 @@ class MainActivity : AppCompatActivity() {
         }
 
         binding.addButton.setOnClickListener {
-            val todo = Todo(binding.editText.text.toString())
-            viewModel.addTodo(todo)
+            //EditText가 비어져있으면 경고 메세지 출력
+            if(binding.editText.text.toString() != ""){
+                val todo = Todo(binding.editText.text.toString())
+                viewModel.addTodo(todo)
+
+            }else{
+                Toast.makeText(this,"내용을 입력햊세요", Toast.LENGTH_LONG).show()
+            }
         }
 
         // 관찰 UI Update
         viewModel.todoLiveData.observe(this, Observer {
             (binding.recylcerView.adapter as TodoAdapter).setData(it) //변경된 최신 데이터 it 넣어줌
         })
+    }
+
+    //로그인 처리에 대한 결과를 여기서 받음 (RC_SIGN_IN == 1000)
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (requestCode == RC_SIGN_IN) {
+            val response = IdpResponse.fromResultIntent(data)
+
+            if (resultCode == Activity.RESULT_OK) {
+                //로그인 성공
+                val user = FirebaseAuth.getInstance().currentUser
+            } else {
+                //로그인 실패 시 액티비티 종료해버림
+                finish()
+            }
+        }
     }
 }
 
@@ -83,7 +128,6 @@ class TodoAdapter(
         holder.binding.todoText.text = todo.text
 
         if (todo.isDone) {
-
             //람다 형식으로 코드를 줄일 수 있다.
             //holder.binding.todoText.paintFlags = holder.binding.todoText.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
             holder.binding.todoText.apply {
