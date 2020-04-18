@@ -17,6 +17,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.IdpResponse
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.ktx.firestore
+import com.google.firebase.ktx.Firebase
 import com.haerokim.todolist.databinding.ActivityMainBinding
 import com.haerokim.todolist.databinding.ItemTodoBinding
 
@@ -31,7 +33,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         //로그인이 안됨
-        if(FirebaseAuth.getInstance().currentUser == null){
+        if (FirebaseAuth.getInstance().currentUser == null) {
             login()
         }
 
@@ -54,12 +56,12 @@ class MainActivity : AppCompatActivity() {
 
         binding.addButton.setOnClickListener {
             //EditText가 비어져있으면 경고 메세지 출력
-            if(binding.editText.text.toString() != ""){
+            if (binding.editText.text.toString() != "") {
                 val todo = Todo(binding.editText.text.toString())
                 viewModel.addTodo(todo)
 
-            }else{
-                Toast.makeText(this,"내용을 입력햊세요", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this, "내용을 입력햊세요", Toast.LENGTH_LONG).show()
             }
         }
 
@@ -86,20 +88,22 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun login(){
+    fun login() {
         val providers = arrayListOf(
-            AuthUI.IdpConfig.EmailBuilder().build())
+            AuthUI.IdpConfig.EmailBuilder().build()
+        )
 
         startActivityForResult(
             AuthUI.getInstance()
                 .createSignInIntentBuilder()
                 .setAvailableProviders(providers)
                 .build(),
-            RC_SIGN_IN)
+            RC_SIGN_IN
+        )
     }
 
     //로그아웃 메소드
-    fun logout(){
+    fun logout() {
         AuthUI.getInstance()
             .signOut(this)
             .addOnCompleteListener {
@@ -183,7 +187,7 @@ class TodoAdapter(
     override fun getItemCount() = myDataset.size
 
     //데이터가 변경될 때마다 notifyDataSetChanged() 호출
-    fun setData(newData: List<Todo>){ //LiveData를 보고 데이터 다시 세팅해주는 메소드
+    fun setData(newData: List<Todo>) { //LiveData를 보고 데이터 다시 세팅해주는 메소드
         myDataset = newData
         notifyDataSetChanged()
     }
@@ -193,9 +197,28 @@ class TodoAdapter(
 //ViewModel이 해당 액티비티를 관리하도록 할 것임 (데이터 관리하는 요소들도 여기서 처리할 것)
 
 class MainViewModel : ViewModel() {
+
+    val db = Firebase.firestore //데이터 베이스 객체
+
     //상태 변경, 관찰이 가능한 LiveData (Mutable) 를 저장할 객체 todoLiveData
     //LiveData를 이용하여 상태 관리를 하게 되면 코드가 훨씬 간결해진다
     val todoLiveData = MutableLiveData<List<Todo>>()
+
+    init {
+        db.collection("todos")
+            .get()
+            .addOnSuccessListener { result ->
+                for (document in result) { //작성한 컬렉션 문서들 모두 읽어들임
+                    //Firebase에서 작성한 컬렉션 문서에서 key 값을 통해 데이터를 가져옴 (Casting 필수)
+                    val todo = Todo(
+                        document.data.get("text") as String,
+                        document.data.get("isDone") as Boolean
+                    )
+                    data.add(todo)
+                }
+                todoLiveData.value = data //LiveData에 읽어온 데이터베이스의 데이터값 넣음
+            }
+    }
 
     private val data = arrayListOf<Todo>()
 

@@ -47,5 +47,6 @@ dependencies {
     implementation "androidx.fragment:fragment-ktx:1.2.2"
 //    implementation 'com.google.firebase:firebase-auth:19.3.0'
     implementation 'com.firebaseui:firebase-ui-auth:6.2.0'
+    implementation 'com.google.firebase:firebase-firestore-ktx:21.4.2'
 
 }
