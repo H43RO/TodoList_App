@@ -5,7 +5,9 @@ import android.graphics.Typeface
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.ViewModel
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.haerokim.todolist.databinding.ActivityMainBinding
@@ -13,49 +15,36 @@ import com.haerokim.todolist.databinding.ItemTodoBinding
 
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
-    private val data = arrayListOf<Todo>()
+    private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        data.add(Todo("숙제", false))
-        data.add(Todo("청소", true))
 
         binding.recylcerView.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
 
             //to의-do 객체의 주소값이 왔다갔다해서 편하게 뷰를 조작할 수 있음 (객체지향 프로그래밍 특성 활용)
-            adapter = TodoAdapter(data,
+            adapter = TodoAdapter(
+                viewModel.data,
                 onClickDeleteIcon = {
-                    deleteTodo(it)
+                    viewModel.deleteTodo(it)
+                    binding.recylcerView.adapter?.notifyDataSetChanged()
                 },
                 onClickItem = {
-                    toggleTodo(it)
+                    viewModel.toggleTodo(it)
+                    binding.recylcerView.adapter?.notifyDataSetChanged()
                 })
         }
 
         binding.addButton.setOnClickListener {
-            addTodo()
+            val todo = Todo(binding.editText.text.toString())
+            viewModel.addTodo(todo)
+            binding.recylcerView.adapter?.notifyDataSetChanged()
         }
 
-    }
-
-    private fun addTodo() {
-        val todo = Todo(binding.editText.text.toString())
-        data.add(todo)
-        binding.recylcerView.adapter?.notifyDataSetChanged() //null safe call
-    }
-
-    private fun deleteTodo(todo: Todo) {
-        data.remove(todo)
-        binding.recylcerView.adapter?.notifyDataSetChanged() //null safe call
-    }
-
-    private fun toggleTodo(todo: Todo) {
-        todo.isDone = !todo.isDone
-        binding.recylcerView.adapter?.notifyDataSetChanged()
     }
 }
 
@@ -116,4 +105,22 @@ class TodoAdapter(
     }
 
     override fun getItemCount() = myDataset.size
+}
+
+//화면 회전 시 액티비티 데이터가 날아가는 현상 픽스 (Activity Life Cycle 문제)
+//ViewModel이 해당 액티비티를 관리하도록 할 것임 (데이터 관리하는 요소들도 여기서 처리할 것)
+class MainViewModel : ViewModel() {
+    val data = arrayListOf<Todo>()
+
+    fun addTodo(todo: Todo) {
+        data.add(todo)
+    }
+
+    fun deleteTodo(todo: Todo) {
+        data.remove(todo)
+    }
+
+    fun toggleTodo(todo: Todo) {
+        todo.isDone = !todo.isDone
+    }
 }
