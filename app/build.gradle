@@ -5,6 +5,9 @@ apply plugin: 'kotlin-android-extensions'
 android {
     compileSdkVersion 28
 
+    viewBinding { //View Binding 기능 추가
+        enabled = true
+    }
 
     defaultConfig {
         applicationId "com.haerokim.todolist"
