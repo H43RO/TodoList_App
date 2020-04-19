@@ -37,9 +37,6 @@ class MainActivity : AppCompatActivity() {
             login()
         }
 
-
-
-
         binding.recylcerView.apply {
             layoutManager = LinearLayoutManager(this@MainActivity)
 
@@ -205,20 +202,25 @@ class MainViewModel : ViewModel() {
     val todoLiveData = MutableLiveData<List<Todo>>()
 
     init {
-        db.collection("todos")
-            .get()
-            .addOnSuccessListener { result ->
-                for (document in result) { //작성한 컬렉션 문서들 모두 읽어들임
-                    //Firebase에서 작성한 컬렉션 문서에서 key 값을 통해 데이터를 가져옴 (Casting 필수)
-                    val todo = Todo(
-                        document.data.get("text") as String,
-                        document.data.get("isDone") as Boolean
-                    )
-                    data.add(todo)
+        val user = FirebaseAuth.getInstance().currentUser
+        if(user != null){
+            db.collection(user.uid)
+                .get()
+                .addOnSuccessListener { result ->
+                    for (document in result) { //작성한 컬렉션 문서들 모두 읽어들임
+                        //Firebase에서 작성한 컬렉션 문서에서 key 값을 통해 데이터를 가져옴 (Casting 필수)
+                        val todo = Todo(
+                            document.data.get("text") as String,
+                            document.data.get("isDone") as Boolean
+                        )
+                        data.add(todo)
+                    }
+                    todoLiveData.value = data //LiveData에 읽어온 데이터베이스의 데이터값 넣음
                 }
-                todoLiveData.value = data //LiveData에 읽어온 데이터베이스의 데이터값 넣음
-            }
+        }
+
     }
+
 
     private val data = arrayListOf<Todo>()
 
