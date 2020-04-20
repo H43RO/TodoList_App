@@ -203,15 +203,17 @@ class MainViewModel : ViewModel() {
 
     init {
         val user = FirebaseAuth.getInstance().currentUser
-        if(user != null){
-            db.collection(user.uid)
-                .get()
-                .addOnSuccessListener { result ->
-                    for (document in result) { //작성한 컬렉션 문서들 모두 읽어들임
+        if (user != null) {
+            db.collection(user.uid) //error entity : e
+                .addSnapshotListener { value, e ->
+                    if (e != null) {
+                        return@addSnapshotListener
+                    }
+                    for (document in value!!) { //작성한 컬렉션 문서들 모두 읽어들임
                         //Firebase에서 작성한 컬렉션 문서에서 key 값을 통해 데이터를 가져옴 (Casting 필수)
                         val todo = Todo(
-                            document.data.get("text") as String,
-                            document.data.get("isDone") as Boolean
+                            document.getString("text")!!,
+                            document.getBoolean("isDone")!!
                         )
                         data.add(todo)
                     }
