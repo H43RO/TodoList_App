@@ -77,7 +77,7 @@ class MainActivity : AppCompatActivity() {
 
             if (resultCode == Activity.RESULT_OK) {
                 //로그인 성공
-                val user = FirebaseAuth.getInstance().currentUser
+                viewModel.fetchData()
             } else {
                 //로그인 실패 시 액티비티 종료해버림
                 finish()
@@ -194,14 +194,18 @@ class TodoAdapter(
 //ViewModel이 해당 액티비티를 관리하도록 할 것임 (데이터 관리하는 요소들도 여기서 처리할 것)
 
 class MainViewModel : ViewModel() {
-
+    private val data = arrayListOf<Todo>()
     val db = Firebase.firestore //데이터 베이스 객체
 
     //상태 변경, 관찰이 가능한 LiveData (Mutable) 를 저장할 객체 todoLiveData
     //LiveData를 이용하여 상태 관리를 하게 되면 코드가 훨씬 간결해진다
     val todoLiveData = MutableLiveData<List<Todo>>()
 
-    init {
+    init{
+        fetchData()
+    }
+
+    fun fetchData() {
         val user = FirebaseAuth.getInstance().currentUser
         if (user != null) {
             db.collection(user.uid) //error entity : e
@@ -209,26 +213,25 @@ class MainViewModel : ViewModel() {
                     if (e != null) {
                         return@addSnapshotListener
                     }
+                    data.clear()
                     for (document in value!!) { //작성한 컬렉션 문서들 모두 읽어들임
                         //Firebase에서 작성한 컬렉션 문서에서 key 값을 통해 데이터를 가져옴 (Casting 필수)
                         val todo = Todo(
-                            document.getString("text")!!,
-                            document.getBoolean("isDone")!!
+                            document.getString("text") ?: "", //Null이면 빈 공백을 데이터로 사용하자
+                            document.getBoolean("isDone") ?: false //Null이면 False (elvis 연산자)
                         )
                         data.add(todo)
                     }
                     todoLiveData.value = data //LiveData에 읽어온 데이터베이스의 데이터값 넣음
                 }
         }
-
     }
 
-
-    private val data = arrayListOf<Todo>()
-
     fun addTodo(todo: Todo) {
-        data.add(todo)
-        todoLiveData.value = data //변경된 최신 데이터를 집어넣음
+        //currentUser가 Null이 아니라면
+        FirebaseAuth.getInstance().currentUser?.let{ user->
+            db.collection(user.uid).add(todo)
+        }
     }
 
     fun deleteTodo(todo: Todo) {
