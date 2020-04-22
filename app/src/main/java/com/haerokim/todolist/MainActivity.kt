@@ -17,6 +17,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.firebase.ui.auth.AuthUI
 import com.firebase.ui.auth.IdpResponse
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.QueryDocumentSnapshot
 import com.google.firebase.firestore.ktx.firestore
 import com.google.firebase.ktx.Firebase
 import com.haerokim.todolist.databinding.ActivityMainBinding
@@ -47,7 +49,7 @@ class MainActivity : AppCompatActivity() {
                     viewModel.deleteTodo(it)
                 },
                 onClickItem = {
-                    viewModel.toggleTodo(it)
+//                    viewModel.toggleTodo(it)
                 })
         }
 
@@ -132,9 +134,9 @@ data class Todo(
 ) //기본값 false
 
 class TodoAdapter(
-    private var myDataset: List<Todo>,
-    val onClickDeleteIcon: (todo: Todo) -> Unit,
-    val onClickItem: (todo: Todo) -> Unit
+    private var myDataset: List<DocumentSnapshot>,
+    val onClickDeleteIcon: (todo: DocumentSnapshot) -> Unit,
+    val onClickItem: (todo: DocumentSnapshot) -> Unit
 ) :
     RecyclerView.Adapter<TodoAdapter.TodoViewHolder>() {
 
@@ -155,9 +157,9 @@ class TodoAdapter(
     override fun onBindViewHolder(holder: TodoViewHolder, position: Int) {
         val todo = myDataset[position]
 
-        holder.binding.todoText.text = todo.text
+        holder.binding.todoText.text = todo.getString(("text") ?: "")
 
-        if (todo.isDone) {
+        if ((todo.getBoolean("isDone") ?: false) == true) {
             //람다 형식으로 코드를 줄일 수 있다.
             //holder.binding.todoText.paintFlags = holder.binding.todoText.paintFlags or Paint.STRIKE_THRU_TEXT_FLAG
             holder.binding.todoText.apply {
@@ -184,7 +186,7 @@ class TodoAdapter(
     override fun getItemCount() = myDataset.size
 
     //데이터가 변경될 때마다 notifyDataSetChanged() 호출
-    fun setData(newData: List<Todo>) { //LiveData를 보고 데이터 다시 세팅해주는 메소드
+    fun setData(newData: List<DocumentSnapshot>) { //LiveData를 보고 데이터 다시 세팅해주는 메소드
         myDataset = newData
         notifyDataSetChanged()
     }
@@ -194,12 +196,12 @@ class TodoAdapter(
 //ViewModel이 해당 액티비티를 관리하도록 할 것임 (데이터 관리하는 요소들도 여기서 처리할 것)
 
 class MainViewModel : ViewModel() {
-    private val data = arrayListOf<Todo>()
+private val data = arrayListOf<QueryDocumentSnapshot>()
     val db = Firebase.firestore //데이터 베이스 객체
 
     //상태 변경, 관찰이 가능한 LiveData (Mutable) 를 저장할 객체 todoLiveData
     //LiveData를 이용하여 상태 관리를 하게 되면 코드가 훨씬 간결해진다
-    val todoLiveData = MutableLiveData<List<Todo>>()
+    val todoLiveData = MutableLiveData<List<DocumentSnapshot>>()
 
     init{
         fetchData()
@@ -213,14 +215,14 @@ class MainViewModel : ViewModel() {
                     if (e != null) {
                         return@addSnapshotListener
                     }
+
+                    if( value != null){
+                        todoLiveData.value = value.documents
+                    }
+
                     data.clear()
                     for (document in value!!) { //작성한 컬렉션 문서들 모두 읽어들임
-                        //Firebase에서 작성한 컬렉션 문서에서 key 값을 통해 데이터를 가져옴 (Casting 필수)
-                        val todo = Todo(
-                            document.getString("text") ?: "", //Null이면 빈 공백을 데이터로 사용하자
-                            document.getBoolean("isDone") ?: false //Null이면 False (elvis 연산자)
-                        )
-                        data.add(todo)
+                        data.add(document)
                     }
                     todoLiveData.value = data //LiveData에 읽어온 데이터베이스의 데이터값 넣음
                 }
@@ -234,9 +236,10 @@ class MainViewModel : ViewModel() {
         }
     }
 
-    fun deleteTodo(todo: Todo) {
-        data.remove(todo)
-        todoLiveData.value = data //변경된 최신 데이터를 집어넣음
+    fun deleteTodo(todo: DocumentSnapshot) {
+        FirebaseAuth.getInstance().currentUser?.let{ user->
+            db.collection(user.uid).document(todo.id).delete()
+        }
     }
 
     fun toggleTodo(todo: Todo) {
