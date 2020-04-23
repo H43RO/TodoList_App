@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
                     viewModel.deleteTodo(it)
                 },
                 onClickItem = {
-//                    viewModel.toggleTodo(it)
+                    viewModel.toggleTodo(it)
                 })
         }
 
@@ -242,8 +242,10 @@ private val data = arrayListOf<QueryDocumentSnapshot>()
         }
     }
 
-    fun toggleTodo(todo: Todo) {
-        todo.isDone = !todo.isDone
-        todoLiveData.value = data //변경된 최신 데이터를 집어넣음
+    fun toggleTodo(todo: DocumentSnapshot) {
+        FirebaseAuth.getInstance().currentUser?.let{ user->
+            val isDone = todo.getBoolean("isDone") ?: false
+            db.collection(user.uid).document(todo.id).update("isDone", !isDone)
+        }
     }
 }
